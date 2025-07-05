@@ -1,101 +1,218 @@
--- Services
+-- SERVICES
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 local StarterGui = game:GetService("StarterGui")
-local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+
+-- GUI
+local gui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+gui.Name = "CamlockUI"
+gui.ResetOnSpawn = true
+
+-- INTRO FRAME
+local introFrame = Instance.new("Frame", gui)
+introFrame.Size = UDim2.new(1, 0, 1, 0)
+introFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+introFrame.ZIndex = 10
+
+local introText = Instance.new("TextLabel", introFrame)
+introText.Size = UDim2.new(1, 0, 1, 0)
+introText.Text = "hx6s makes the best scripts"
+introText.TextColor3 = Color3.new(1, 1, 1)
+introText.Font = Enum.Font.GothamBold
+introText.TextSize = 40
+introText.BackgroundTransparency = 1
+
+-- Draggable Helper
+local function makeDraggable(frame)
+	local dragging, dragInput, startPos, startInputPos
+	frame.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+			startInputPos = input.Position
+			startPos = frame.Position
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+				end
+			end)
+		end
+	end)
+	frame.InputChanged:Connect(function(input)
+		if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+			local delta = input.Position - startInputPos
+			frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		end
+	end)
+end
+
+-- Delay Intro and Fade Out
+task.delay(3, function()
+	local tween = TweenService:Create(introFrame, TweenInfo.new(1), {BackgroundTransparency = 1})
+	tween:Play()
+	tween.Completed:Wait()
+	introText.Visible = false
+	introFrame:Destroy()
+end)
+
+-- UI: sybau.lol label
+local label = Instance.new("TextLabel", gui)
+label.Size = UDim2.new(0, 150, 0, 30)
+label.Position = UDim2.new(0, 20, 0, 20)
+label.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+label.Text = "sybau.lol"
+label.TextColor3 = Color3.new(1, 1, 1)
+label.Font = Enum.Font.SourceSansBold
+label.TextSize = 20
+makeDraggable(label)
+
+-- Camlock Image Button
+local button = Instance.new("ImageButton", gui)
+button.Size = UDim2.new(0, 150, 0, 40)
+button.Position = UDim2.new(0, 20, 0, 60)
+button.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+button.Image = "rbxassetid://109291211779026"
+button.BorderSizePixel = 0
+Instance.new("UICorner", button).CornerRadius = UDim.new(0, 12)
+makeDraggable(button)
+
+-- X Offset Box
+local xBox = Instance.new("TextBox", gui)
+xBox.Size = UDim2.new(0, 60, 0, 30)
+xBox.Position = UDim2.new(0, 20, 0, 110)
+xBox.PlaceholderText = "X"
+xBox.Text = "0"
+xBox.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+xBox.TextColor3 = Color3.new(1, 1, 1)
+xBox.Font = Enum.Font.SourceSans
+xBox.TextSize = 16
+makeDraggable(xBox)
+
+-- Y Offset Box
+local yBox = Instance.new("TextBox", gui)
+yBox.Size = UDim2.new(0, 60, 0, 30)
+yBox.Position = UDim2.new(0, 90, 0, 110)
+yBox.PlaceholderText = "Y"
+yBox.Text = "0"
+yBox.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+yBox.TextColor3 = Color3.new(1, 1, 1)
+yBox.Font = Enum.Font.SourceSans
+yBox.TextSize = 16
+makeDraggable(yBox)
+
+-- ESP Button
+local espButton = Instance.new("TextButton", gui)
+espButton.Size = UDim2.new(0, 150, 0, 40)
+espButton.Position = UDim2.new(0, 20, 0, 150)
+espButton.BackgroundColor3 = Color3.fromRGB(255, 105, 180) -- Pink
+espButton.TextColor3 = Color3.new(1, 1, 1)
+espButton.Text = "Toggle ESP"
+espButton.Font = Enum.Font.SourceSansBold
+espButton.TextSize = 18
+Instance.new("UICorner", espButton).CornerRadius = UDim.new(0, 12)
+makeDraggable(espButton)
 
 -- Variables
-local camLockEnabled = false
-local predictionValue = 0.165
-local assetId = "17027749156"  -- Specified asset ID
-local toggleKey = Enum.KeyCode.Q  -- Key to toggle the cam lock
-local targetPlayer = nil  -- Store the locked target
+local camlockActive = false
+local espActive = false
+local target = nil
+local espBoxes = {}
 
--- Function to get the nearest player
-local function getNearestPlayer()
-local maxDistance = math.huge
-local nearestPlayer = nil
-for _, player in pairs(Players:GetPlayers()) do
-if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-local distance = (player.Character.HumanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
-if distance < maxDistance then
-maxDistance = distance
-nearestPlayer = player
-end
-end
-end
-return nearestPlayer
-end
-
--- Toggle CamLock Function
-local function toggleCamLock()
-if camLockEnabled then
-camLockEnabled = false
-targetPlayer = nil
-StarterGui:SetCore("SendNotification", {
-Title = "CamLock",
-Text = "Disabled",
-Duration = 2
-})
-else
-camLockEnabled = true
-targetPlayer = getNearestPlayer()
-StarterGui:SetCore("SendNotification", {
-Title = "CamLock",
-Text = targetPlayer and ("Enabled on " .. targetPlayer.Name) or "No target found",
-Duration = 2
-})
-end
+-- Closest Player
+local function getClosestPlayer()
+	local closest, shortest = nil, math.huge
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+			local pos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(player.Character.HumanoidRootPart.Position)
+			if onScreen then
+				local dist = (Vector2.new(Mouse.X, Mouse.Y) - Vector2.new(pos.X, pos.Y)).Magnitude
+				if dist < shortest then
+					shortest = dist
+					closest = player
+				end
+			end
+		end
+	end
+	return closest
 end
 
--- CamLock Function
-local function camLock()
+-- Camlock Render
 RunService.RenderStepped:Connect(function()
-if camLockEnabled and targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
-local predictedPosition = targetPlayer.Character.HumanoidRootPart.Position + (targetPlayer.Character.HumanoidRootPart.Velocity * predictionValue)
-game.Workspace.CurrentCamera.CFrame = CFrame.new(game.Workspace.CurrentCamera.CFrame.Position, predictedPosition)
-end
-end)
-end
-
--- GUI Function
-local function createGui()
-if LocalPlayer:FindFirstChild("PlayerGui") then
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.ResetOnSpawn = false  -- This will keep the GUI from resetting on death/respawn
-
-local ImageButton = Instance.new("ImageButton", ScreenGui)
-ImageButton.Image = "rbxassetid://" .. assetId
-ImageButton.Size = UDim2.new(0, 50, 0, 50)  -- Make the button size reasonable
-ImageButton.Position = UDim2.new(0, 100, 0, 100)  -- Adjust to where you want the button on screen
-ImageButton.BackgroundTransparency = 1  -- Make the button background invisible
-ImageButton.Parent = LocalPlayer.PlayerGui
-
-ImageButton.MouseButton1Click:Connect(toggleCamLock)
-end
-end
-
--- Create GUI when player's character is added
-LocalPlayer.CharacterAdded:Connect(function(character)
-createGui()
+	if camlockActive and target and target.Character and target.Character:FindFirstChild("UpperTorso") then
+		local cam = workspace.CurrentCamera
+		local xOffset = tonumber(xBox.Text) or 0
+		local yOffset = tonumber(yBox.Text) or 0
+		local aim = target.Character.UpperTorso.Position + Vector3.new(xOffset, yOffset, 0)
+		cam.CFrame = CFrame.new(cam.CFrame.Position, aim)
+	end
 end)
 
--- Create GUI initially and start cam lock
-createGui()
-camLock()
-
--- Keybind to toggle CamLock
-UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
-if gameProcessedEvent then return end
-if input.KeyCode == toggleKey then
-toggleCamLock()
+-- Notification System
+local function notifyTarget(targetPlayer)
+	if targetPlayer then
+		local displayName = targetPlayer.DisplayName or targetPlayer.Name
+		local username = targetPlayer.Name
+		local text = "Locked onto: " .. displayName .. " (" .. username .. ")"
+		StarterGui:SetCore("SendNotification", {
+			Title = "Camlock",
+			Text = text,
+			Duration = 3
+		})
+	end
 end
+
+-- Toggle Camlock
+button.MouseButton1Click:Connect(function()
+	camlockActive = not camlockActive
+	if camlockActive then
+		target = getClosestPlayer()
+		notifyTarget(target)
+	else
+		target = nil
+	end
 end)
 
--- Notify when script is loaded
-StarterGui:SetCore("SendNotification", {
-Title = "CamLock Script",
-Text = "Loaded. Press 'Q' to toggle lock on a single target.",
-Duration = 5
-})
+-- ESP Logic
+RunService.RenderStepped:Connect(function()
+	if espActive then
+		for _, player in ipairs(Players:GetPlayers()) do
+			if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+				local box = espBoxes[player]
+				if not box then
+					box = Drawing.new("Square")
+					box.Color = Color3.fromRGB(255, 105, 180)
+					box.Thickness = 1
+					box.Transparency = 1
+					box.Filled = false
+					espBoxes[player] = box
+				end
+
+				local root = player.Character.HumanoidRootPart
+				local pos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(root.Position)
+
+				if onScreen then
+					local size = Vector2.new(50, 100) / (root.Position - workspace.CurrentCamera.CFrame.Position).Magnitude * 5
+					box.Size = size
+					box.Position = Vector2.new(pos.X - size.X / 2, pos.Y - size.Y / 2)
+					box.Visible = true
+				else
+					box.Visible = false
+				end
+			elseif espBoxes[player] then
+				espBoxes[player].Visible = false
+			end
+		end
+	else
+		for _, box in pairs(espBoxes) do
+			box.Visible = false
+		end
+	end
+end)
+
+-- Toggle ESP
+espButton.MouseButton1Click:Connect(function()
+	espActive = not espActive
+	espButton.Text = espActive and "ESP: ON" or "ESP: OFF"
+end)
